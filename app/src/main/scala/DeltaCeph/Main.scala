@@ -8,7 +8,13 @@ import java.nio.file.{Files, Path, Paths}
 object Main {
 
     private def getSession(name: String, testing: Option[String]) = testing match {
-        case Some(value) => SparkSession.builder.appName(name).config("spark.master", s"local[$value]").config("spark.arrowspark.pushdown.filters", "true").config("spark.arrowspark.ceph.userados", "false").getOrCreate()
+        case Some(value) => SparkSession.builder.appName(name)
+            .config("spark.master", s"local[$value]")
+            .config("spark.arrowspark.pushdown.filters", "true")
+            .config("spark.arrowspark.ceph.userados", "false")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .getOrCreate()
         case None => SparkSession.builder.appName(name).getOrCreate()
     }
 
@@ -38,7 +44,7 @@ object Main {
      * @param session Session to use.
      * @param storePath Path containing Delta table.
      */
-    def checkRead(session: SparkSession, storePath: String): Unit = { // double total_amount
+    def checkRead(session: SparkSession, storePath: String): Unit = {
         val df = session.read.format("delta").load(storePath)
         val colnames = df.schema.names
 

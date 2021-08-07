@@ -12,14 +12,20 @@ plugins {
 
     // Apply the application plugin to add support for building a CLI application in Java.
     id 'application'
+
+    id 'com.github.johnrengelman.shadow' version '6.1.0'
 }
+
+//////////// Jarfile Generation Section ////////////
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 
 repositories {
 //        WARNING: Order is important! Top is searched first!
 //        Use The 3 lines below if you compiled arrow dependencies somewhere else, and want to compile against those now.
 //        Of course, you will have to provide an *absolute path* to where you have stored these jars on your filesystem.
     flatDir {
-        dirs '/home/radon/uni/mrp/precompiled/arrow-5.0.0-SNAPSHOT/11'
+        dirs '/home/radon/uni/mrp/reps/DeltaCeph/depjars', '/home/radon/uni/mrp/precompiled/arrow-5.0.0-SNAPSHOT/11'
     }
     mavenLocal()
     mavenCentral()
@@ -39,9 +45,9 @@ dependencies {
     shipFull 'org.scala-lang:scala-reflect:2.12.10'
 
 //      Repository libs for modified v5.0.0 bridge Arrow Dataset JNI
-//        shipEssential ('org.apache.arrow:arrow-dataset:5.0.0-SNAPSHOT') {
-//            transitive = false
-//        }
+        shipEssential ('org.apache.arrow:arrow-dataset:5.0.0-SNAPSHOT') {
+            transitive = false
+        }
     shipEssential ('org.apache.arrow:arrow-memory-core:5.0.0-SNAPSHOT') {
         transitive = false
     }
@@ -51,11 +57,13 @@ dependencies {
     shipEssential ('org.apache.arrow:arrow-vector:5.0.0-SNAPSHOT') {
         transitive = false
     }
-//        Compiled libs in local repository.
-    shipEssential name: 'arrow-dataset-5.0.0-SNAPSHOT'
+
+    // Custom Arrow Dataset API
+//    shipEssential name: 'arrow-dataset-5.0.0-SNAPSHOT'
+
 
     // Delta Lake dependency
-    implementation group: 'io.delta', name: 'delta-core_2.12', version: '0.8.0'
+    shipFull group: 'io.delta', name: 'delta-core_2.12', version: '0.8.0'
 
     // Dependencies needed for Spark
     shipFull 'org.apache.spark:spark-core_2.12:3.0.1'
@@ -79,24 +87,83 @@ dependencies {
         transitive = false
     }
 
+    //        Compiled libs in local repository.
+    shipEssential name: 'arrow-spark-connector-4.0'
 }
-//dependencies {
-//    // Use Scala 2.13 in our library project
-//    implementation 'org.scala-lang:scala-library:2.13.3'
-//
-//    implementation group: 'io.delta', name: 'delta-core_2.12', version: '1.0.0'
-//
-//
-//    // Use Scalatest for testing our library
-//    testImplementation 'junit:junit:4.13.1'
-//    testImplementation 'org.scalatest:scalatest_2.13:3.2.3'
-//    testImplementation 'org.scalatestplus:junit-4-13_2.13:3.2.2.0'
-//
-//    // Need scala-xml at test runtime
-//    testRuntimeOnly 'org.scala-lang.modules:scala-xml_2.13:1.2.0'
-//}
 
 application {
     // Define the main class for the application.
     mainClass = 'DeltaCeph.Main'
+}
+
+
+
+
+
+/** Builds a full jar JAR, with all dependencies contained */
+shadowJar {
+    mainClassName = 'DeltaCeph.Main'
+    zip64(true)
+
+    mergeServiceFiles()
+    configurations = [ project.configurations.shipFull ]
+}
+/** Builds a lightweight type JAR. You are responsible to provide all dependencies listed in the manifest `Class-Path` entry */
+task lightJar(type: ShadowJar) {
+    mainClassName = 'DeltaCeph.Main'
+    zip64(true)
+
+    mergeServiceFiles()
+
+    dependencies {// We have to explicitly exclude Scala lang libraries that the scala plugin tries to push
+        exclude(dependency('org.scala-lang:scala-library:2.12.10'))
+        exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
+    }
+
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'Main-Class': 'DeltaCeph.Main',
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
+        )
+    }
+    archiveClassifier.set('light')
+    from sourceSets.main.output
+    from sourceSets.test.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    configurations = [ project.configurations.shipLight ]
+    manifest.inheritFrom project.tasks.jar.manifest
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
+/** Builds an essentials-only type JAR. You are responsible to provide all dependencies listed in the manifest `Class-Path` entry */
+task essentialJar(type: ShadowJar) {
+    mainClassName = 'DeltaCeph.Main'
+    zip64(true)
+
+    mergeServiceFiles()
+
+    dependencies {
+        exclude(dependency('org.scala-lang:scala-library:2.12.10'))
+        exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
+    }
+
+    manifest {
+        attributes(
+                'Manifest-Version': 1.0,
+                'Main-Class': 'DeltaCeph.Main',
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar log4j-api-scala_2.12-12.0.jar log4j-api-2.12.0.jar log4j-core-2.12.0.jar'
+        )
+    }
+    archiveClassifier.set('essential')
+    from sourceSets.main.output
+    from sourceSets.test.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    configurations = [ project.configurations.shipEssential ]
+    manifest.inheritFrom project.tasks.jar.manifest
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
+jar {
+    mainClassName = 'DeltaCeph.Main'
 }
