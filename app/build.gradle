@@ -25,7 +25,7 @@ repositories {
 //        Use The 3 lines below if you compiled arrow dependencies somewhere else, and want to compile against those now.
 //        Of course, you will have to provide an *absolute path* to where you have stored these jars on your filesystem.
     flatDir {
-        dirs '/home/radon/uni/mrp/reps/DeltaCeph/depjars', '/home/radon/uni/mrp/precompiled/arrow-5.0.0-SNAPSHOT/11'
+        dirs '/home/radon/uni/mrp/reps/DeltaCeph/depjars', '/home/radon/uni/mrp/precompiled/write_arrow-5.0.0-SNAPSHOT/11'
     }
     mavenLocal()
     mavenCentral()
@@ -45,9 +45,9 @@ dependencies {
     shipFull 'org.scala-lang:scala-reflect:2.12.10'
 
 //      Repository libs for modified v5.0.0 bridge Arrow Dataset JNI
-        shipEssential ('org.apache.arrow:arrow-dataset:5.0.0-SNAPSHOT') {
-            transitive = false
-        }
+    shipEssential ('org.apache.arrow:arrow-dataset:5.0.0-SNAPSHOT') {
+        transitive = false
+    }
     shipEssential ('org.apache.arrow:arrow-memory-core:5.0.0-SNAPSHOT') {
         transitive = false
     }
@@ -63,11 +63,41 @@ dependencies {
 
 
     // Delta Lake dependency
-    shipFull group: 'io.delta', name: 'delta-core_2.12', version: '0.8.0'
+//    shipFull group: 'io.delta', name: 'delta-core_2.12', version: '0.8.0'
+    // Custom Delta Lake
+    shipEssential name: 'delta-core_2.12-1.1.0-SNAPSHOT'
 
     // Dependencies needed for Spark
-    shipFull 'org.apache.spark:spark-core_2.12:3.0.1'
-    shipFull 'org.apache.spark:spark-sql_2.12:3.0.1'
+    shipFull ('org.apache.spark:spark-core_2.12:3.1.2') {
+        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targetting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
+    }
+    shipFull ('org.apache.spark:spark-sql_2.12:3.1.2') {
+        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targetting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
+    }
+
+    shipFull ('com.fasterxml.jackson.core:jackson-annotations') {
+        version {strictly '2.10.0'}
+    }
+    shipFull ('com.fasterxml.jackson.core:jackson-core') {
+        version {strictly '2.10.0'}
+    }
+    shipFull ('com.fasterxml.jackson.core:jackson-databind') {
+        version {strictly '2.10.0'}
+    }
+    shipFull ('com.fasterxml.jackson.dataformat:jackson-dataformat-yaml') {
+        version {strictly '2.10.0'}
+    }
+    // Spark uses this more modern jar for some reason. It should not be included in the library, as it enforces too-new versions of several jackson libraries, causing conflicts.
+//        shipFull ('com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.11.2') {
+//            transitive = false
+//        }
+    shipFull 'org.codehaus.jackson:jackson-jaxrs:1.9.13'
+    shipFull 'org.codehaus.jackson:jackson-mapper-asl:1.9.13'
+    shipFull 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.10.0'
+    shipFull 'com.fasterxml.jackson.module:jackson-module-paranamer:2.10.0'
+    shipFull 'com.fasterxml.jackson.module:jackson-module-scala_2.12:2.10.0'
+    shipFull 'org.codehaus.jackson:jackson-xc:1.9.13'
+
 
     // Spark indirect dependencies
     shipFull 'org.apache.avro:avro:1.8.2'
@@ -76,16 +106,6 @@ dependencies {
     //Even though Spark provides this, we always crash using their version. Better to include it ourselves
     shipEssential 'com.thoughtworks.paranamer:paranamer:2.8'
 
-    // Dependencies we need to write AVRO parquet files
-    // It is extremely important to skip adding transitive dependencies in this @aar notation.
-    // If we don't, we accidentally add more recent versions of org.apache.parquet:parquet* libraries.
-    // Spark is inherently incompatible with this, and has shown in the past it is really finicky with the exact versions:
-    // https://github.com/apache/arrow/issues/3491
-    // https://issues.apache.org/jira/browse/SPARK-25588
-    // Note: This is how they fixed it for Spark itself, too
-    shipLight('org.apache.parquet:parquet-avro:1.8.2') {
-        transitive = false
-    }
 
     //        Compiled libs in local repository.
     shipEssential name: 'arrow-spark-connector-4.0'
@@ -124,7 +144,7 @@ task lightJar(type: ShadowJar) {
         attributes(
                 'Manifest-Version': 1.0,
                 'Main-Class': 'DeltaCeph.Main',
-                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
         )
     }
     archiveClassifier.set('light')
@@ -152,7 +172,7 @@ task essentialJar(type: ShadowJar) {
         attributes(
                 'Manifest-Version': 1.0,
                 'Main-Class': 'DeltaCeph.Main',
-                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.0.1.jar spark-sql_2.12-3.0.1.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar log4j-api-scala_2.12-12.0.jar log4j-api-2.12.0.jar log4j-core-2.12.0.jar'
+                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar log4j-api-scala_2.12-12.0.jar log4j-api-2.12.0.jar log4j-core-2.12.0.jar'
         )
     }
     archiveClassifier.set('essential')
