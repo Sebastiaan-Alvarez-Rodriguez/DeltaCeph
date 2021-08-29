@@ -16,9 +16,10 @@
 package org.apache.spark.sql.delta
 
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.arrow.ArrowFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
-trait DeltaFileFormat {
+trait DeltaDataFileFormat {
     /** Return the underlying Spark `FileFormat` of the Delta table. */
-    def fileFormat: FileFormat = new ParquetFileFormat()
+    def fileFormat: FileFormat = new ArrowFileFormat()
 }

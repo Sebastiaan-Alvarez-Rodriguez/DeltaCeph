@@ -2,8 +2,9 @@ package DeltaCeph
 
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.arrowspark.spark.sql.write.ArrowWriteExtension
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Paths}
 
 object Main {
 
@@ -12,7 +13,7 @@ object Main {
             .config("spark.master", s"local[$value]")
             .config("spark.arrowspark.pushdown.filters", "true")
             .config("spark.arrowspark.ceph.userados", "false")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config("spark.sql.extensions", classOf[ArrowWriteExtension].getCanonicalName+','+"io.delta.sql.DeltaSparkSessionExtension")
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
             .getOrCreate()
         case None => SparkSession.builder.appName(name).getOrCreate()
@@ -49,17 +50,18 @@ object Main {
         val colnames = df.schema.names
 
         val untriggeredDF = df.select(colnames.map(name => col(name)):_*)
+        print(untriggeredDF)
         triggerExecution(untriggeredDF)
     }
 
     def main(args: Array[String]): Unit = {
-        val deltaStorePath = "sample/delta/try0/"
+        val deltaStorePath = Paths.get("sample", "delta", "try1")
 
         println("Starting Delta...")
         val session = getSession("test", Option("1")) // start Spark session, 1 core, local execution.
-        if (Files.notExists(Paths.get("sample", "delta", "try0")))
-            buildSampleSet(session, deltaStorePath)
-        checkRead(session, deltaStorePath)
+        if (Files.notExists(deltaStorePath) || Files.notExists(deltaStorePath.resolve("_delta_log").resolve("00000000000000000000.json")))
+            buildSampleSet(session, deltaStorePath.toString)
+        checkRead(session, deltaStorePath.toString)
 
         session.close()
     }

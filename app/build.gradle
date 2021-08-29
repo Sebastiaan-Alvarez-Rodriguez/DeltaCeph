@@ -19,13 +19,15 @@ plugins {
 //////////// Jarfile Generation Section ////////////
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+import java.nio.file.Paths
+
 
 repositories {
 //        WARNING: Order is important! Top is searched first!
 //        Use The 3 lines below if you compiled arrow dependencies somewhere else, and want to compile against those now.
 //        Of course, you will have to provide an *absolute path* to where you have stored these jars on your filesystem.
     flatDir {
-        dirs '/home/radon/uni/mrp/reps/DeltaCeph/depjars', '/home/radon/uni/mrp/precompiled/write_arrow-5.0.0-SNAPSHOT/11'
+        dirs Paths.get(rootProject.getProjectDir().getAbsolutePath()).resolve("depjars")
     }
     mavenLocal()
     mavenCentral()
@@ -69,10 +71,10 @@ dependencies {
 
     // Dependencies needed for Spark
     shipFull ('org.apache.spark:spark-core_2.12:3.1.2') {
-        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targetting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
+        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targeting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
     }
     shipFull ('org.apache.spark:spark-sql_2.12:3.1.2') {
-        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targetting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
+        exclude group: 'com.fasterxml.jackson.core' // Spark pom is incorrectly targeting jackson core 2.11, causing internal version mismatches. We add it ourselves later.
     }
 
     shipFull ('com.fasterxml.jackson.core:jackson-annotations') {
@@ -108,7 +110,7 @@ dependencies {
 
 
     //        Compiled libs in local repository.
-    shipEssential name: 'arrow-spark-connector-4.0'
+    shipEssential 'org.arrowspark:arrowspark:4.0'
 }
 
 application {
@@ -140,13 +142,12 @@ task lightJar(type: ShadowJar) {
         exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
     }
 
-    manifest {
-        attributes(
-                'Manifest-Version': 1.0,
-                'Main-Class': 'DeltaCeph.Main',
-                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
-        )
-    }
+    manifest.attributes(
+            'Manifest-Version': 1.0,
+            'Main-Class': 'DeltaCeph.Main',
+            'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar'
+    )
+
     archiveClassifier.set('light')
     from sourceSets.main.output
     from sourceSets.test.output
@@ -168,13 +169,12 @@ task essentialJar(type: ShadowJar) {
         exclude(dependency('org.scala-lang:scala-reflect:2.12.10'))
     }
 
-    manifest {
-        attributes(
-                'Manifest-Version': 1.0,
-                'Main-Class': 'DeltaCeph.Main',
-                'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar log4j-api-scala_2.12-12.0.jar log4j-api-2.12.0.jar log4j-core-2.12.0.jar'
-        )
-    }
+    manifest.attributes(
+            'Manifest-Version': 1.0,
+            'Main-Class': 'DeltaCeph.Main',
+            'Class-Path': 'scala-library-2.12.10.jar scala-reflect-2.12.10.jar scala-xml_2.12-1.2.0.jar delta-core_2.12.jar spark-core_2.12-3.1.2.jar spark-sql_2.12-3.1.2.jar avro-1.8.2.jar hadoop-common-2.7.4.jar log4j-1.2.17.jar parquet-avro-1.8.2.jar log4j-api-scala_2.12-12.0.jar log4j-api-2.12.0.jar log4j-core-2.12.0.jar'
+    )
+
     archiveClassifier.set('essential')
     from sourceSets.main.output
     from sourceSets.test.output
