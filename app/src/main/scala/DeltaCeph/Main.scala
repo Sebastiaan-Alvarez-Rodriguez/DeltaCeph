@@ -19,6 +19,9 @@ object Main {
         case None => SparkSession.builder.appName(name).getOrCreate()
     }
 
+    /** Prints query plan explanation for Datasets (and for Dataframes too, as a `DataFrame` is simply another term for `Dataset[Row]` */
+    def explain(ds: Dataset[_], extended: Boolean): Unit = ds.explain(extended)
+
     /** Forcefully triggers execution for Datasets (and for Dataframes too, as a `DataFrame` simply is another term for `Dataset[Row]`) */
     //noinspection ScalaUnusedSymbol
     def triggerExecution(ds: Dataset[_]): Unit = {

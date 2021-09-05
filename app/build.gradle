@@ -109,7 +109,7 @@ dependencies {
     shipEssential 'com.thoughtworks.paranamer:paranamer:2.8'
 
 
-    //        Compiled libs in local repository.
+    // Compiled libs in local maven repository.
     shipEssential 'org.arrowspark:arrowspark:4.0'
 }
 
